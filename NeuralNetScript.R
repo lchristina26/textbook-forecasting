@@ -6,7 +6,7 @@ MONTH_OUT <- FALSE
 lag <- 50
 isbn <- 1
 
-inputs <- read.csv("/home/leah/Downloads/finalData.csv", header=TRUE,
+inputs <- read.csv("finalData.csv", header=TRUE,
 sep=",", quote="\"")
 
 library(AMORE)
