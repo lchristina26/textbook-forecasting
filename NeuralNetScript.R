@@ -1,23 +1,40 @@
 DAY_OUT <- TRUE
 WEEK_OUT <- FALSE
 MONTH_OUT <- FALSE
-
+ETS <- TRUE
+REGULAR <- FALSE
 # TUNABLE: lag - this is the correlation number of days to go back
 lag <- 50
 isbn <- 1
-
-inputs <- read.csv("finalData.csv", header=TRUE,
-sep=",", quote="\"")
-
+if (ETS) {
+maxDays <- 613
+}
+if (REGULAR) {
+maxDays <- 731
+}
+if (REGULAR) {
+    inputs <- read.csv("/home/leah/Downloads/finalData.csv", header=TRUE,
+              sep=",", quote="\"")
+}
+if(ETS) {
+    inputs <- read.csv("/home/leah/Downloads/exponentialResiduals.csv", 
+              header=TRUE, sep=",", quote="\"")
+}
 library(AMORE)
-
-inputs <- reshape(inputs, idvar="ISBN", timevar="Date", direction="wide")
+library(splitstackshape)
+if (REGULAR) {
+    inputs <- reshape(inputs, idvar="ISBN", timevar="Date", direction="wide")
+}
+if (ETS) {
+    inputs <- getanID(inputs, "ISBN")
+    inputs <- reshape(inputs, idvar="ISBN", timevar=".id", direction="wide")
+}
 inputs <- as.matrix(sapply(data.frame(inputs), as.numeric))
 inputs <- matrix(inputs, ncol=ncol(inputs), dimnames=NULL)
 
 if (DAY_OUT) {
     # TUNABLE: c(in, h1, h2, ..., out) - layer setup to be passed in newff
-    layers <- c(50, 3, 2, 1)
+    layers <- c(50, 30, 20, 1)
 #    while(isbn < 79) {
         num <- 2
         testNum <-366
@@ -29,7 +46,7 @@ if (DAY_OUT) {
             trainIn <- rbind(trainIn, 
                        t(data.frame(inputs[isbn, num:(num+lag)])))
             num <- num+1
-            if ((testNum+lag) < 731) {
+            if ((testNum+lag) < maxDays) {
                 testIn <- rbind(testIn, 
                        t(data.frame(inputs[isbn, testNum:(testNum+lag)])))
                 testNum <- testNum +1
@@ -37,18 +54,18 @@ if (DAY_OUT) {
         }
         trainT <- trainIn[,(lag+1):(lag+1)]
         testT <- testIn[,(lag+1):(lag+1)]
-        normTrainT <- (trainT-min(trainT))/(max(trainT)-min(trainT))
-        normTrainIn <- t(apply(trainIn[,1:(lag)], 1, 
-                       function(x)(x-min(x))/(max(x)-min(x))))
-        normTestT <- (testT-min(testT))/(max(testT)-min(testT))
-        normTestIn <- t(apply(testIn[,1:(lag)], 1, 
-                       function(x)(x-min(x))/(max(x)-min(x))))
+        normTrainT <-trainT# (trainT-min(trainT))/(max(trainT)-min(trainT))
+        normTrainIn <- trainIn[,1:lag]#t(apply(trainIn[,1:(lag)], 1, 
+                              #function(x)(x-min(x))/(max(x)-min(x))))
+        normTestT <- testT#(testT-min(testT))/(max(testT)-min(testT))
+        normTestIn <- testIn[,1:(lag)]#t(apply(testIn[,1:(lag)], 1, 
+                        #function(x)(x-min(x))/(max(x)-min(x))))
         # newff creates the neural net with tunable parameters
         #TUNABLE: learning.rate, momentum, hidden & output.layer are
         #         the activation functions
-        net <-  newff(layers, learning.rate.global=0.0001,
+        net <-  newff(layers, learning.rate.global=0.001,
                 momentum.global=0.1, error.criterium="LMS", Stao=NA,
-                hidden.layer="tansig", output.layer="tansig",
+                hidden.layer="tansig", output.layer="purelin",
                 method="ADAPTgdwm")
         
         print("PASSED NET CREATION")
